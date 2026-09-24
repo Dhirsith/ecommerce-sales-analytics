@@ -12,3 +12,6 @@ data/processed/*
 !data/processed/.gitkeep
 reports/figures/*
 !reports/figures/.gitkeep
+!reports/figures/monthly_revenue.png
+!reports/figures/top_products.png
+!reports/figures/country_revenue.png

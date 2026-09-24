@@ -2,14 +2,16 @@
 SELECT
     SUM(line_revenue_gbp) AS net_revenue_gbp,
     COUNT(DISTINCT invoice_no) FILTER (WHERE quantity > 0 AND revenue_eligible) AS positive_quantity_orders,
-    COUNT(DISTINCT customer_id) FILTER (WHERE customer_id IS NOT NULL AND revenue_eligible) AS identified_customers,
+    COUNT(DISTINCT customer_id) FILTER (
+        WHERE customer_id IS NOT NULL AND quantity > 0 AND revenue_eligible
+    ) AS identified_purchasing_customers,
     SUM(line_revenue_gbp) / NULLIF(
         COUNT(DISTINCT invoice_no) FILTER (WHERE quantity > 0 AND revenue_eligible), 0
     ) AS average_order_value_gbp
 FROM retail_analytics.fact_sales_line
 WHERE revenue_eligible;
 
--- Monthly sales with year-over-year-style prior-month comparison (not a forecast).
+-- Monthly sales with month-over-month comparison to the immediately preceding observed month.
 WITH monthly AS (
     SELECT d.year, d.month, MIN(d.full_date) AS month_start,
            SUM(f.line_revenue_gbp) AS revenue_gbp,
@@ -32,7 +34,7 @@ WITH product_sales AS (
     SELECT p.product_code, p.product_description,
            SUM(f.line_revenue_gbp) AS revenue_gbp,
            SUM(f.quantity) AS net_quantity,
-           COUNT(DISTINCT f.invoice_no) AS invoice_count
+           COUNT(DISTINCT f.invoice_no) FILTER (WHERE f.quantity > 0) AS invoice_count
     FROM retail_analytics.fact_sales_line f
     JOIN retail_analytics.dim_product p USING (product_code)
     WHERE f.revenue_eligible
@@ -64,7 +66,8 @@ ORDER BY customer_type;
 -- Country analysis, using source country as customer geography.
 SELECT country, SUM(line_revenue_gbp) AS revenue_gbp,
        COUNT(DISTINCT invoice_no) FILTER (WHERE quantity > 0) AS order_count,
-       COUNT(DISTINCT customer_id) AS identified_customers
+       COUNT(DISTINCT customer_id) FILTER (WHERE customer_id IS NOT NULL AND quantity > 0)
+           AS identified_purchasing_customers
 FROM retail_analytics.fact_sales_line
 WHERE revenue_eligible
 GROUP BY country
